@@ -1,5 +1,3 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
 package com.azure.spring.data.cosmostutorial;
 
 import com.azure.spring.data.cosmos.repository.CosmosRepository;
@@ -11,12 +9,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserRepository extends CosmosRepository<User, String> {
+public interface OrderLineRepository extends CosmosRepository<OrderLine, String> {
+    @Query("select * from c where c.order_id = @order_id")
+    Iterable<OrderLine> findByOrderId(@Param("order_id") String order_id);
 
-    Iterable<User> findByFirstName(String firstName);
-
-    User findByIdAndLastName(String id, String lastName);
-
-    @Query("select c.firstName from c where c.id = @id")
-    Page<JsonNode> findFirstNameById(@Param("id") String id, Pageable pageable);
+    @Query("select * from c where c.order_id = @order_id")
+    Page<JsonNode> queryOrderLineByOrderId(@Param("order_id") String order_id, Pageable pageable);
 }

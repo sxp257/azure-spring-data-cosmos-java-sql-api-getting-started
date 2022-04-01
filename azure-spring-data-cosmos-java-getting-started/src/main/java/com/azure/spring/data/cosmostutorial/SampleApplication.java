@@ -4,12 +4,16 @@ package com.azure.spring.data.cosmostutorial;
 
 import com.azure.spring.data.cosmos.core.query.CosmosPageRequest;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import reactor.core.publisher.Flux;
@@ -18,15 +22,18 @@ import reactor.core.publisher.Mono;
 import java.util.Iterator;
 
 @SpringBootApplication
+@ComponentScan(basePackageClasses = OrderController.class)
 public class SampleApplication implements CommandLineRunner {
 
     private final Logger logger = LoggerFactory.getLogger(SampleApplication.class);
 
     @Autowired
-    private UserRepository userRepository;
+    private OrderHeaderRepository orderHeaderRepository;
 
     @Autowired
-    private ReactiveUserRepository reactiveUserRepository;
+    private OrderLineRepository orderLineRepository;
+
+
 
     public static void main(String[] args) {
         SpringApplication.run(SampleApplication.class, args);
@@ -34,70 +41,26 @@ public class SampleApplication implements CommandLineRunner {
 
     public void run(String... var1) {
 
-        final User testUser1 = new User("testId1", "testFirstName", "testLastName1");
-        final User testUser2 = new User("testId2", "testFirstName", "testLastName2");
-        final User testUser3 = new User("testId3", "testFirstName2", "testLastName3");
-
-        logger.info("Using sync repository");
-
-        // <Delete>
-
-        userRepository.deleteAll();
-
-        // </Delete>
-
-        // <Create>
-
-        logger.info("Saving user : {}", testUser1);
-        userRepository.save(testUser1);
-
-        // </Create>
-
-        logger.info("Saving user : {}", testUser2);
-        userRepository.save(testUser2);
-
-        // <Read>        
+        String order_id = "OE0211101A794337";
+        Iterator<OrderHeader> orderHeaderIterator = orderHeaderRepository.findByOrderId(order_id).iterator();
+        Order order = new Order();
         
-        // to find by Id, please specify partition key value if collection is partitioned
-        final User result = userRepository.findByIdAndLastName(testUser1.getId(), testUser1.getLastName());
-        logger.info("Found user : {}", result);
-        
-        // </Read>        
-        
-        Iterator<User> usersIterator = userRepository.findByFirstName("testFirstName").iterator();
-
-        logger.info("Users by firstName : testFirstName");
-        while (usersIterator.hasNext()) {
-            logger.info("user is : {}", usersIterator.next());
+        if (orderHeaderIterator.hasNext()) {
+            
+            OrderHeader orderHeader = orderHeaderIterator.next();
+            logger.info("orderHeader order id : {}", orderHeader.getOrder_id());
+            order.setOrderHeader(orderHeader);
         }
 
-        logger.info("Using reactive repository");
+        logger.info("Query Line using orderLineRepository");
 
-        // <Query>
+        Iterator<OrderLine> orderLineIterator = orderLineRepository.findByOrderId(order_id).iterator();
+        orderLineIterator.forEachRemaining(line -> order.setLines(line));
+        Gson gsonLine = new GsonBuilder().setPrettyPrinting().create();
+        String jsonLine = gsonLine.toJson(order);
+        logger.info(String.format("First query result: orderdetail with (/id) = (%s, %s)",
+                order.getOrderHeader().getId(), jsonLine));
 
-        Flux<User> users = reactiveUserRepository.findByFirstName("testFirstName");
-        users.map(u -> {
-            logger.info("user is : {}", u);
-            return u;
-        }).subscribe();
-
-        // </Query>
-
-        //  Count users before saving
-        Long count = reactiveUserRepository.count().block();
-        logger.info("Count is : {}", count);
-
-        PageRequest cosmosPageRequest = CosmosPageRequest.of(0, 100);
-        Page<JsonNode> firstName = userRepository.findFirstNameById(testUser1.getId(), cosmosPageRequest);
-        logger.info("Found firstName by id : {}", firstName.getContent().get(0));
-
-        //  Save another user
-        reactiveUserRepository.save(testUser3).block();
-
-        //  Count again to verify user is saved and new count is 3
-        Mono<Long> countMono = reactiveUserRepository.count();
-        countMono.doOnNext(countValue -> {
-            logger.info("Count is : {}", countValue);
-        }).subscribe();
+        logger.info("Done.");
     }
 }

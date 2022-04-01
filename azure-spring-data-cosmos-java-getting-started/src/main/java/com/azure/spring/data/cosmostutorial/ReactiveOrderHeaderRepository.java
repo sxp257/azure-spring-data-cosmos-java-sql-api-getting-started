@@ -7,8 +7,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 
 @Repository
-public interface ReactiveUserRepository extends ReactiveCosmosRepository<User, String> {
+public interface ReactiveOrderHeaderRepository extends ReactiveCosmosRepository<OrderHeader, String> {
 
-    Flux<User> findByFirstName(String firstName);
+    Flux<OrderHeader> findByStore(String store);
 }
 
